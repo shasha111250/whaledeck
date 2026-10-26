@@ -30,6 +30,7 @@ import { Brand } from "./Brand";
 import { SidebarBackgroundSettings } from "./SidebarBackgroundSettings";
 import { CoverFramingSettings } from "./CoverFramingSettings";
 import { DetailTransitionSettings } from "./DetailTransitionSettings";
+import { RangeSlider } from "./RangeSlider";
 
 const TABS = [
   { id: "general", label: "常规", icon: Settings2 },
@@ -348,16 +349,16 @@ export function SettingsPanel() {
                   )}
                   <span className="hint">{theme.backgroundFile ? "已设置（可随时换）" : "支持 png / jpg / webp"}</span>
                 </div>
+                <p className="hint m-0">设置后所有项目统一使用此背景，清除后恢复各项目封面。</p>
                 <div>
-                  <label className="label" htmlFor="background-dim">背景遮罩强度（{Math.round(theme.backgroundDim * 100)}%）</label>
-                  <input
+                  <label className="sidebar-control-label" htmlFor="background-dim"><span>背景遮罩强度</span><output htmlFor="background-dim">{Math.round(theme.backgroundDim * 100)}%</output></label>
+                  <RangeSlider
                     id="background-dim"
-                    type="range"
                     min={0}
                     max={95}
                     value={Math.round(theme.backgroundDim * 100)}
+                    aria-valuetext={`${Math.round(theme.backgroundDim * 100)}%`}
                     onChange={(e) => patchTheme({ backgroundDim: Number(e.target.value) / 100 })}
-                    className="w-full accent-[var(--primary)]"
                   />
                   <p className="hint m-0">数值越大背景越暗，文字更清晰。</p>
                 </div>
@@ -374,30 +375,26 @@ export function SettingsPanel() {
                 </label>
                 <div>
                   <label className="sidebar-control-label" htmlFor="sidebar-blur"><span>模糊度</span><output htmlFor="sidebar-blur">{sidebarBlur(theme.sidebarBlur)} px</output></label>
-                  <input
+                  <RangeSlider
                     id="sidebar-blur"
-                    type="range"
                     min={0}
                     max={MAX_SIDEBAR_BLUR}
                     step={1}
                     value={sidebarBlur(theme.sidebarBlur)}
                     aria-valuetext={`${sidebarBlur(theme.sidebarBlur)} 像素`}
                     onChange={(e) => patchTheme({ sidebarBlur: Number(e.target.value) })}
-                    className="w-full accent-[var(--primary)]"
                   />
                 </div>
                 <div>
                   <label className="sidebar-control-label" htmlFor="sidebar-transparency"><span>底色透明度</span><output htmlFor="sidebar-transparency">{Math.round((theme.sidebarTransparency ?? 0.52) * 100)}%</output></label>
-                  <input
+                  <RangeSlider
                     id="sidebar-transparency"
-                    type="range"
                     min={0}
                     max={100}
                     step={1}
                     value={Math.round((theme.sidebarTransparency ?? 0.52) * 100)}
                     aria-valuetext={`${Math.round((theme.sidebarTransparency ?? 0.52) * 100)}%`}
                     onChange={(e) => patchTheme({ sidebarTransparency: Number(e.target.value) / 100 })}
-                    className="w-full accent-[var(--primary)]"
                   />
                 </div>
               </Section>
@@ -521,8 +518,8 @@ export function SettingsPanel() {
         className="settings-footer flex items-center justify-between border-t"
         style={{ borderColor: "var(--border)" }}
       >
-        <span className="hint">{tab === "covers" ? "取景需点「确认保存取景」；关闭设置会丢弃未保存的修改" : "普通设置自动保存；背景适配需点应用"}</span>
-        <button className="btn btn-primary" onClick={closeSettings}>
+        {(tab !== "covers" || !settings.theme.backgroundFile) && <span className="hint">{tab === "covers" ? "取景需点「确认保存取景」；关闭设置会丢弃未保存的修改" : "普通设置自动保存；背景适配需点应用"}</span>}
+        <button className="btn btn-primary ml-auto" onClick={closeSettings}>
           完成
         </button>
       </div>

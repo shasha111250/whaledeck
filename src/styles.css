@@ -39,6 +39,8 @@
   --sidebar-image-primary-rgb: var(--primary-rgb);
   --sidebar-image-accent-rgb: var(--accent-rgb);
   --window-radius: 12px;
+  --window-border-width: 1px;
+  --window-border: rgb(143 163 199 / 35%);
   --app-color-scheme: dark;
   /* 根画布保持默认配色，避免 WebView 为透明区域填充深色底。 */
   color-scheme: normal;
@@ -54,6 +56,7 @@
   --text-dim: #5b6f8f;
   --primary-ink: color-mix(in srgb, var(--primary) 42%, #12203a);
   --danger: #b32349;
+  --window-border: rgb(18 32 58 / 22%);
   --app-color-scheme: light;
 }
 
@@ -70,6 +73,7 @@ body {
 
 :root[data-window-expanded="true"] {
   --window-radius: 0px;
+  --window-border-width: 0px;
 }
 
 body {
@@ -90,10 +94,25 @@ body {
   background: var(--bg);
   color-scheme: var(--app-color-scheme);
   border-radius: var(--window-radius);
-  /* 裁剪背景与普通浮层；原生 dialog 的顶层遮罩需单独裁剪。 */
+  /* 裁剪背景与普通浮层；顶层 dialog 自身另行使用相同轮廓。 */
   clip-path: inset(0 round var(--window-radius));
   isolation: isolate;
 }
+
+/* 独立覆盖层不挤压内容；dialog 进入顶层后由自身续画描边，避免遮罩压暗边缘。 */
+body::after,
+.modal::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  box-sizing: border-box;
+  border: var(--window-border-width) solid var(--window-border);
+  border-radius: var(--window-radius);
+  pointer-events: none;
+}
+
+body:has(.modal[open])::after { display: none; }
 
 .window-drag-region {
   position: fixed;
@@ -371,6 +390,163 @@ select {
   color: color-mix(in srgb, var(--text-dim) 75%, transparent);
 }
 
+/* 只增强原生单选下拉框；旧 WebView 保留系统菜单，不接管键盘或选择状态。 */
+select:where(:not([multiple]):not([size])) option {
+  background: var(--surface);
+  color: var(--text);
+}
+select:disabled { opacity: .45; cursor: not-allowed; }
+select.input:focus-visible {
+  outline: 2px solid var(--primary-ink);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+@supports (appearance: base-select) and selector(::picker(select)) {
+  /* 强制颜色模式继续交由系统绘制，避免装饰色覆盖系统可读配色。 */
+  @media not (forced-colors: active) {
+    select:where(:not([multiple]):not([size])),
+    select:where(:not([multiple]):not([size]))::picker(select) {
+      appearance: base-select;
+    }
+    select:where(:not([multiple]):not([size])) {
+      align-items: center;
+      gap: 10px;
+      text-align: start;
+    }
+    select::picker-icon {
+      content: "";
+      width: 6px;
+      height: 6px;
+      flex-shrink: 0;
+      margin-inline-start: auto;
+      margin-inline-end: 2px;
+      border-right: 1.5px solid currentColor;
+      border-bottom: 1.5px solid currentColor;
+      color: var(--text-dim);
+      transform: translateY(-2px) rotate(45deg);
+    }
+    select:open::picker-icon { transform: translateY(2px) rotate(225deg); }
+    select::picker(select) {
+      inline-size: max(128px, anchor-size(self-inline));
+      min-inline-size: 0;
+      max-inline-size: calc(100vw - 24px);
+      max-block-size: min(320px, 70dvh);
+      margin-block: 6px;
+      padding: 4px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 8px 28px rgb(0 0 0 / .2);
+      font: inherit;
+      overflow: auto;
+      overscroll-behavior: contain;
+    }
+    select option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-block-size: 34px;
+      padding: 7px 10px;
+      border-radius: 7px;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      cursor: pointer;
+    }
+    select option:checked {
+      background: color-mix(in srgb, var(--primary-ink) 12%, var(--surface));
+      font-weight: 600;
+    }
+    select option:focus-visible {
+      outline: 1px solid var(--primary-ink);
+      outline-offset: -1px;
+      background: color-mix(in srgb, var(--primary-ink) 18%, var(--surface));
+    }
+    @media (hover: hover) and (pointer: fine) {
+      select.input:enabled:hover { border-color: var(--primary-ink); }
+      select option:enabled:hover {
+        outline: 1px solid var(--primary-ink);
+        outline-offset: -1px;
+        background: color-mix(in srgb, var(--primary-ink) 18%, var(--surface));
+      }
+    }
+    select option::checkmark {
+      order: 1;
+      margin-inline-start: auto;
+      color: var(--primary-ink);
+    }
+    select option:disabled { color: var(--text-dim); cursor: not-allowed; }
+    @media (max-width: 700px), (pointer: coarse) {
+      select option { min-block-size: 44px; }
+    }
+  }
+}
+
+/* 保留原生 range 的操作语义；WebView2 与 Firefox 分别声明伪元素，避免选择器互相失效。 */
+.range-slider {
+  --range-color: var(--primary-ink);
+  --range-rest: color-mix(in srgb, var(--text-dim) 48%, var(--surface));
+  --range-halo: transparent;
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+}
+.range-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--range-color) var(--range-fill), var(--range-rest) var(--range-fill));
+}
+.range-slider::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--range-color) var(--range-fill), var(--range-rest) var(--range-fill));
+}
+.range-slider::-webkit-slider-thumb {
+  appearance: none;
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  margin-top: -6px;
+  border: 2px solid var(--range-color);
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgb(0 0 0 / .18), 0 0 0 5px var(--range-halo);
+  transition: box-shadow var(--motion-fast) ease;
+}
+.range-slider::-moz-range-thumb {
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--range-color);
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgb(0 0 0 / .18), 0 0 0 5px var(--range-halo);
+  transition: box-shadow var(--motion-fast) ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .range-slider:enabled:hover { --range-halo: color-mix(in srgb, var(--range-color) 14%, transparent); }
+}
+.range-slider:enabled:active { --range-halo: color-mix(in srgb, var(--range-color) 24%, transparent); cursor: grabbing; }
+.range-slider:focus-visible { --range-halo: color-mix(in srgb, var(--range-color) 20%, transparent); }
+.range-slider:disabled { opacity: .45; cursor: not-allowed; }
+@media (max-width: 700px), (pointer: coarse) {
+  .range-slider { height: 44px; }
+}
+@media (forced-colors: active) {
+  .range-slider { --range-color: Highlight; --range-rest: GrayText; forced-color-adjust: none; }
+  .range-slider::-webkit-slider-thumb { background: Canvas; box-shadow: none; }
+  .range-slider::-moz-range-thumb { background: Canvas; box-shadow: none; }
+  .range-slider:focus-visible { outline-color: Highlight; }
+}
+
 .chip {
   display: inline-flex;
   align-items: center;
@@ -561,7 +737,6 @@ input[type="checkbox"] { width: 16px; height: 16px; flex-shrink: 0; }
 .sidebar-fit-info p { margin: 8px 0 0; font-variant-numeric: tabular-nums; }
 .sidebar-fit-position { display: grid; gap: 8px; min-width: 0; margin: 0; padding: 0; border: 0; }
 .sidebar-fit-position > .btn { justify-self: start; margin-top: 4px; }
-.sidebar-fit-position input { width: 100%; min-width: 0; accent-color: var(--primary); }
 .sidebar-fit-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 16px; border-top: 1px solid var(--border); }
 .sidebar-fit-actions > .hint { margin-right: auto; }
 .library-sidebar .sidebar-search { padding: 8px 32px; font-size: 12px; }
@@ -642,7 +817,8 @@ input[type="checkbox"] { width: 16px; height: 16px; flex-shrink: 0; }
 .detail-content, .detail-footer { padding-inline: var(--space-page); }
 .detail-content { padding-top: 80px; }
 .detail-disclosure:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
-.detail-icon { position: relative; flex: 0 0 76px; min-height: 76px; }
+.detail-title-row { line-height: 1.25; }
+.detail-icon { position: relative; flex: 0 0 1lh; min-height: 1lh; }
 .detail-scroll { overflow-x: hidden; overflow-y: hidden; overscroll-behavior: contain; }
 .game-title { overflow-wrap: anywhere; line-height: 1.25; text-wrap: balance; }
 .detail-panels {
@@ -673,7 +849,6 @@ input[type="checkbox"] { width: 16px; height: 16px; flex-shrink: 0; }
 .detail-actions > .btn-primary { min-width: 156px; font-variant-numeric: tabular-nums; }
 .detail-actions .btn-icon-glass { min-width: 40px; min-height: 40px; }
 .detail-preset-select { height: 40px; padding: 0 8px; }
-.detail-preset-select option { background: var(--surface); color: var(--text); }
 .action-tooltip {
   position: fixed;
   z-index: 70;
@@ -695,7 +870,7 @@ input[type="checkbox"] { width: 16px; height: 16px; flex-shrink: 0; }
   .detail-grid > section:nth-child(n + 3) { grid-column: 1 / -1; }
 }
 @container (max-width: 560px) {
-  .game-title { font-size: 26px; }
+  .detail-title-row { font-size: 26px; }
   .detail-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
   .detail-actions > .btn-primary { flex-basis: 100%; }
   .detail-footer { padding-bottom: 16px; }
@@ -712,20 +887,19 @@ input[type="checkbox"] { width: 16px; height: 16px; flex-shrink: 0; }
   max-height: none;
   padding: 64px 24px 24px;
   border: 0;
-  background: transparent;
+  background: rgb(0 0 0 / 55%);
+  backdrop-filter: blur(3px);
+  /* dialog 位于顶层，不受 #root 裁剪；遮罩、内容及阴影须一起裁剪。 */
+  clip-path: inset(0 round var(--window-radius));
   color: var(--text);
   overflow: hidden;
   color-scheme: var(--app-color-scheme);
 }
 .modal[open] { display: flex; align-items: center; justify-content: center; }
-/* 顶层遮罩不受 #root 的裁剪约束，需跟随窗口圆角单独裁剪。 */
-.modal::backdrop {
-  background: rgb(0 0 0 / 55%);
-  backdrop-filter: blur(3px);
-  clip-path: inset(0 round var(--window-radius));
-}
+/* 原生遮罩只保留模态语义，不依赖旧 WebView2 的伪元素变量继承。 */
+.modal::backdrop { background: transparent; }
 /* 设置内容较长，滚动时无需重复合成整窗模糊背景。 */
-.modal:has(.settings-header)::backdrop { backdrop-filter: none; }
+.modal:has(.settings-header) { backdrop-filter: none; }
 .modal-panel {
   --modal-gutter: 28px;
   display: flex;
@@ -786,7 +960,6 @@ input[type="checkbox"] { width: 16px; height: 16px; flex-shrink: 0; }
 .cover-framing-controls { display: grid; gap: 10px; min-width: 0; padding: 0; margin: 0; border: 0; }
 .cover-framing-controls label { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
 .cover-framing-controls output { color: var(--text-dim); font-variant-numeric: tabular-nums; }
-.cover-framing-controls input { width: 100%; accent-color: var(--primary); }
 .cover-framing-controls > div { margin-top: 8px; }
 .close-behavior-option {
   display: grid;

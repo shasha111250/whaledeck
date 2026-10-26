@@ -9,20 +9,23 @@ import { coverFraming, coverFramingStyle, dragCoverFraming } from "../lib/coverF
 import { api } from "../lib/ipc";
 import { useLibrary } from "../store/useLibrary";
 import type { CoverFraming, Game } from "../types";
+import { RangeSlider } from "./RangeSlider";
 
-/** 按游戏与文件重新挂载编辑器，切换时丢弃未确认草稿。 */
+/** 全局背景启用时卸载编辑器；按游戏与文件重新挂载，切换时丢弃未确认草稿。 */
 export function CoverFramingSettings() {
   const games = useLibrary(s => s.games);
   const selectedId = useLibrary(s => s.selectedId);
+  const customBackground = useLibrary(s => Boolean(s.settings?.theme.backgroundFile));
   const [id, setId] = useState(selectedId ?? games[0]?.id ?? "");
   const [saving, setSaving] = useState(false);
   const game = games.find(g => g.id === id) ?? games[0];
   return <section className="cover-framing-settings">
     <div>
       <h3 className="m-0 flex items-center gap-2 text-[14px] font-semibold"><Crop size={16} aria-hidden="true" />封面显示取景</h3>
-      <p className="hint mt-2 mb-0">调整游戏详情背景的截取范围，原图完整保留。每款游戏单独保存，侧栏仍使用原有背景适配。</p>
+      {!customBackground && <p className="hint mt-2 mb-0">调整游戏详情背景的截取范围，原图完整保留。每款游戏单独保存，侧栏仍使用原有背景适配。</p>}
     </div>
-    {!game ? <p className="hint">请先加入游戏并应用一张封面。</p> : <>
+    {customBackground ? <p className="hint m-0" role="status">已启用全局背景图，主区不再显示游戏封面，因此暂时隐藏封面取景设置。请到「设置 → 外观 → 背景图」清除图片后再调整；已保存的封面取景会保留。</p>
+      : !game ? <p className="hint">请先加入游戏并应用一张封面。</p> : <>
       <div>
         <label className="label" htmlFor="cover-framing-game">选择游戏</label>
         <select id="cover-framing-game" className="input" value={game.id} disabled={saving} onChange={e => setId(e.target.value)}>
@@ -107,12 +110,12 @@ function FramingEditor({ game, onSaving }: { game: Game; onSaving: (saving: bool
     </div>
     <fieldset className="cover-framing-controls" disabled={saving || loadState !== "ready"}>
       <legend className="sr-only">调整封面取景</legend>
-      <label htmlFor="cover-framing-x">水平位置 <output>{Math.round(draft.positionX)}%</output></label>
-      <input id="cover-framing-x" type="range" min="0" max="100" step="1" value={draft.positionX} onChange={e => patch({ positionX: Number(e.target.value) })} />
-      <label htmlFor="cover-framing-y">垂直位置 <output>{Math.round(draft.positionY)}%</output></label>
-      <input id="cover-framing-y" type="range" min="0" max="100" step="1" value={draft.positionY} onChange={e => patch({ positionY: Number(e.target.value) })} />
-      <label htmlFor="cover-framing-zoom">缩放 <output>{Math.round(draft.zoom * 100)}%</output></label>
-      <input id="cover-framing-zoom" type="range" min="100" max="300" step="1" value={Math.round(draft.zoom * 100)} onChange={e => patch({ zoom: Number(e.target.value) / 100 })} />
+      <label htmlFor="cover-framing-x">水平位置 <output htmlFor="cover-framing-x">{Math.round(draft.positionX)}%</output></label>
+      <RangeSlider id="cover-framing-x" min={0} max={100} step={1} value={draft.positionX} aria-valuetext={`${Math.round(draft.positionX)}%`} onChange={e => patch({ positionX: Number(e.target.value) })} />
+      <label htmlFor="cover-framing-y">垂直位置 <output htmlFor="cover-framing-y">{Math.round(draft.positionY)}%</output></label>
+      <RangeSlider id="cover-framing-y" min={0} max={100} step={1} value={draft.positionY} aria-valuetext={`${Math.round(draft.positionY)}%`} onChange={e => patch({ positionY: Number(e.target.value) })} />
+      <label htmlFor="cover-framing-zoom">缩放 <output htmlFor="cover-framing-zoom">{Math.round(draft.zoom * 100)}%</output></label>
+      <RangeSlider id="cover-framing-zoom" min={100} max={300} step={1} value={Math.round(draft.zoom * 100)} aria-valuetext={`${Math.round(draft.zoom * 100)}%`} onChange={e => patch({ zoom: Number(e.target.value) / 100 })} />
       <div className="flex flex-wrap gap-2">
         <button className="btn btn-ghost" onClick={() => setDraft(coverFraming({ coverFile: game.coverFile }))}><RotateCcw size={14} aria-hidden="true" />恢复居中</button>
         <button className="btn" disabled={!dirty} onClick={() => setDraft(saved)}>取消修改</button>
